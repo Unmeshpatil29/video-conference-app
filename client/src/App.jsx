@@ -1,55 +1,52 @@
-import { useEffect, useState } from "react";
-import { io } from "socket.io-client";
-
-const socket = io("http://localhost:5000");
+import { useState } from "react";
+import "./App.css";
+import { useWebRTC } from "./hooks/useWebRTC";
+import JoinScreen from "./components/JoinScreen";
+import CallScreen from "./components/CallScreen";
 
 function App() {
-  const [isConnected, setIsConnected] = useState(false);
+  const {
+    isConnected,
+    joined,
+    localVideoRef,
+    remoteVideoRef,
+    joinRoom,
+    isMicOn,
+    isCameraOn,
+    toggleMic,
+    toggleCamera,
+    leaveCall,
+  } = useWebRTC();
+
   const [roomId, setRoomId] = useState("");
-  const [joined, setJoined] = useState(false);
 
-  useEffect(() => {
-  socket.on("connect", () => setIsConnected(true));
-  socket.on("disconnect", () => setIsConnected(false));
-
-  socket.on("user-joined", (userId) => {
-    console.log("New user joined the room:", userId);
-  });
-
-  socket.on("existing-users", (userIds) => {
-    console.log("Users already in the room:", userIds);
-  });
-
-  return () => {
-    socket.off("connect");
-    socket.off("disconnect");
-    socket.off("user-joined");
-    socket.off("existing-users");
-  };
-}, []);
-
-  const handleJoinRoom = () => {
-    if (roomId.trim() === "") return;
-    socket.emit("join-room", roomId);
-    setJoined(true);
+  const handleJoin = (id) => {
+    setRoomId(id);
+    joinRoom(id);
   };
 
   return (
-    <div>
-      <h2>Video Conference App</h2>
-      <p>Status: {isConnected ? "Connected ✅" : "Disconnected ❌"}</p>
+    <div className="app">
+      <div className="app-header">
+        <h2>Video Conference App</h2>
+        <span className={`status ${isConnected ? "connected" : ""}`}>
+          {isConnected ? "Connected" : "Disconnected"}
+        </span>
+      </div>
 
       {!joined ? (
-        <div>
-          <input
-            value={roomId}
-            onChange={(e) => setRoomId(e.target.value)}
-            placeholder="Enter meeting ID"
-          />
-          <button onClick={handleJoinRoom}>Join Room</button>
-        </div>
+        <JoinScreen onJoin={handleJoin} />
       ) : (
-        <p>You are in room: {roomId}</p>
+        <CallScreen
+          roomId={roomId}
+          localVideoRef={localVideoRef}
+          remoteVideoRef={remoteVideoRef}
+          isMicOn={isMicOn}
+          isCameraOn={isCameraOn}
+          toggleMic={toggleMic}
+          toggleCamera={toggleCamera}
+          onLeave={leaveCall}
+        />
       )}
     </div>
   );

@@ -22,25 +22,36 @@ io.on("connection", (socket) => {
   console.log("A user connected:", socket.id);
 
   socket.on("join-room", (roomId) => {
-    // Get list of sockets already in the room, BEFORE we add ourselves
     const room = io.sockets.adapter.rooms.get(roomId);
     const existingUsers = room ? Array.from(room) : [];
 
     socket.join(roomId);
     console.log(`${socket.id} joined room: ${roomId}`);
 
-    // Tell the NEW user who is already here
     socket.emit("existing-users", existingUsers);
-
-    // Tell EXISTING users that a new person joined
     socket.to(roomId).emit("user-joined", socket.id);
   });
 
+  // NEW: relay WebRTC signaling messages directly to a specific person
+  socket.on("offer", ({ to, offer }) => {
+    io.to(to).emit("offer", { from: socket.id, offer });
+  });
+
+  socket.on("answer", ({ to, answer }) => {
+    io.to(to).emit("answer", { from: socket.id, answer });
+  });
+
+  socket.on("ice-candidate", ({ to, candidate }) => {
+    io.to(to).emit("ice-candidate", { from: socket.id, candidate });
+  });
+
   socket.on("disconnect", () => {
-    console.log("A user disconnected:", socket.id);
+  console.log("A user disconnected:", socket.id);
+  socket.rooms.forEach((room) => {
+    socket.to(room).emit("user-left", socket.id);
   });
 });
-
+});
 app.get("/", (req, res) => {
   res.send("Server is running");
 });
